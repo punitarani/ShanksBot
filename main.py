@@ -47,8 +47,8 @@ def _find_reciprocal(_prime: int) -> dict:
 
 
 if __name__ == '__main__':
-    infile = 'thousand_primes.csv'
-    outfile = 'thousand_reciprocals.csv'
+    infile = 'data/primes/thousand_primes.csv'
+    outfile = 'data/reciprocals/thousand_reciprocals.csv'
 
     # Read in primes
     _primes = pd.read_csv(infile, index_col=0).index.tolist()
@@ -58,3 +58,4 @@ if __name__ == '__main__':
 
     # Save df
     _df.to_csv(outfile)
+    print(f"Saved to {outfile}")
