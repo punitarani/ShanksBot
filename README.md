@@ -1,0 +1,2 @@
+# ShanksBot
+ Shanks Bot
