@@ -70,10 +70,8 @@ def unzipFiles(limit: int = 200) -> None:
 
     print("\nUnzipping files...")
 
-    # Check if file already exists
-    for file in files:
-        if Path(file).exists():
-            unzip(file)
+    with mp.Pool(processes=mp.cpu_count()) as pool:
+        pool.map(unzip, files)
 
 
 def unzip(filepath) -> None:
