@@ -1,20 +1,55 @@
+import multiprocessing as mp
+import pickle
+from functools import partial
 from pathlib import Path
-
-import pandas as pd
 
 
 def getPrimes(limit: int = 200):
-    primes_dir = Path(__file__).parent.joinpath(r'data\primes')
+    """
+    Read all files and return a list of primes
 
-    files = [
-        f"data/unzipped/2T_part{i}.txt" for i in range(1, limit + 1) if Path(f"data/unzipped/2T_part{i}.txt").exists()
-    ]
+    :param limit: The maximum number of files to read
+    :return: A list of primes
+    """
+
+    pickle_file = r'data/primes/primes.pkl'
+
+    if Path(pickle_file).exists():
+        with open(pickle_file, 'rb') as f:
+            print(f"Reading {pickle_file}")
+            primes = pickle.load(f)
+
+    else:
+        files = [
+            f"data/unzipped/2T_part{i}.txt" for i in range(1, limit + 1) if Path(f"data/unzipped/2T_part{i}.txt").exists()
+        ]
+
+        primes = list()
+
+        cores = mp.cpu_count() - 1 if mp.cpu_count() > 1 else 1
+
+        with mp.Pool(cores) as pool:
+            results = pool.map(readFile, files)
+
+        for result in results:
+            primes.extend(result)
+
+    return primes
+
+
+def readFile(file: str):
+    """
+    Reads a file and returns a list primes
+
+    :param file: The file to read
+    :return: A list of primes
+    """
 
     primes = list()
 
-    for file in files:
-        print(f"Reading {file}")
+    print(f"Reading {file}")
 
+    try:
         with open(file, 'r') as f:
             lines = f.readlines()
             for line in lines:
@@ -32,21 +67,69 @@ def getPrimes(limit: int = 200):
                     for prime in line:
                         if prime != '':
                             primes.append(int(prime))
+    except Exception as e:
+        print(f"Error {e} while reading file {file}")
+
+    return primes
+
+
+def convertFiles(limit: int = 200):
+    """
+    Read all files and write to feather file
+
+    :param limit: The maximum number of files to read
+    """
+
+    files = [
+        f"data/unzipped/2T_part{i}.txt" for i in range(1, limit + 1) if Path(f"data/unzipped/2T_part{i}.txt").exists()
+    ]
+
+    outfile = r"data/primes/primes.pkl"
+
+    cores = mp.cpu_count() - 1 if mp.cpu_count() > 1 else 1
+
+    with mp.Pool(cores) as pool:
+        poolFunc = partial(convertFile, outfile=outfile)
+        primes = pool.map(poolFunc, files)
+
+    print(
+        f"\nFinished writing to {outfile}. Feather file size: {round(Path(outfile).stat().st_size / 1024 ** 2, 2)} MB")
+
+    return primes
+
+
+def convertFile(infile: str, outfile: str):
+    """
+    Read primes from txt file and write to feather file
+
+    :param infile: The file to read from
+    :param outfile: The file to write to
+    """
+
+    primes = readFile(infile)
+
+    if Path(outfile).exists():
+        print(f"Appending {infile} to {outfile}")
+
+        # Append list to existing pickle file
+        with open(outfile, 'rb') as f:
+            data = pickle.load(f)
+
+        data.extend(primes)
+
+        with open(outfile, 'wb') as f:
+            pickle.dump(data, f)
+
+    else:
+        print(f"\nCreating {outfile}")
+        print(f"Writing {infile} to {outfile}")
+
+        # Create new pickle file
+        with open(outfile, 'wb') as f:
+            pickle.dump(primes, f)
 
     return primes
 
 
 if __name__ == '__main__':
-    outfile = 'data/primes/primes.ftr'
-
-    _primes = getPrimes(limit=200)
-
-    # Create DataFrame
-    _df = pd.DataFrame(_primes, columns=['primes'])
-
-    print(f"\nWriting {_df.shape[0]} primes to {outfile}")
-
-    # Write to feather file
-    _df.to_feather(outfile)
-
-    print(f"\nFinished writing to {outfile}. Feather file size: {round(Path(outfile).stat().st_size / 1024**2, 2)} MB")
+    convertFiles(200)
